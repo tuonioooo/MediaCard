@@ -14,7 +14,51 @@ export default function App() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const handleUpdateCanvas = (updates: Partial<CanvasState>) => {
-    setState(prev => ({ ...prev, ...updates }));
+    setState(prev => {
+      const nextWidth = updates.width ?? prev.width;
+      const nextHeight = updates.height ?? prev.height;
+
+      if (nextWidth === prev.width && nextHeight === prev.height) {
+        return { ...prev, ...updates };
+      }
+
+      const scaleX = nextWidth / prev.width;
+      const scaleY = nextHeight / prev.height;
+      const textScale = Math.min(scaleX, scaleY);
+
+      return {
+        ...prev,
+        ...updates,
+        width: nextWidth,
+        height: nextHeight,
+        elements: prev.elements.map((el) => {
+          const resizedBase = {
+            ...el,
+            x: el.x * scaleX,
+            y: el.y * scaleY,
+            width: el.width * scaleX,
+            height: el.height * scaleY,
+          };
+
+          if (el.type === 'text') {
+            return {
+              ...resizedBase,
+              fontSize: Math.max(1, Math.round(el.fontSize * textScale)),
+              letterSpacing: el.letterSpacing * textScale,
+            };
+          }
+
+          if (el.type === 'image' || el.type === 'shape') {
+            return {
+              ...resizedBase,
+              borderRadius: el.borderRadius === undefined ? undefined : el.borderRadius * textScale,
+            };
+          }
+
+          return resizedBase;
+        }),
+      };
+    });
   };
 
   const handleUpdateElement = (id: string, updates: Partial<CanvasElement>) => {

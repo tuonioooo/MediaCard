@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CanvasState, CanvasElement, TextElement, ImageElement, ShapeElement } from '../types';
 
 interface CanvasProps {
@@ -16,12 +16,19 @@ export const Canvas: React.FC<CanvasProps> = ({
   onUpdateElement,
   canvasRef
 }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [elementStart, setElementStart] = useState({ x: 0, y: 0 });
+  const [dragState, setDragState] = useState<{
+    elementId: string;
+    startX: number;
+    startY: number;
+    elementX: number;
+    elementY: number;
+    moved: boolean;
+  } | null>(null);
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
   // Calculate scale to fit canvas in view
   const containerRef = useRef<HTMLDivElement>(null);
+  const editingRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
@@ -39,31 +46,97 @@ export const Canvas: React.FC<CanvasProps> = ({
     return () => window.removeEventListener('resize', updateScale);
   }, [state.width, state.height]);
 
-  const handleMouseDown = (e: React.MouseEvent, element: CanvasElement) => {
+  useEffect(() => {
+    if (selectedElementId !== editingTextId) {
+      setEditingTextId(null);
+    }
+  }, [selectedElementId, editingTextId]);
+
+  useEffect(() => {
+    if (editingTextId && editingRef.current) {
+      editingRef.current.focus();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editingRef.current);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+  }, [editingTextId]);
+
+  const handleElementMouseDown = (e: React.MouseEvent, element: CanvasElement) => {
+    if (editingTextId === element.id) {
+      e.stopPropagation();
+      return;
+    }
+
     e.stopPropagation();
     onSelectElement(element.id);
-    setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-    setElementStart({ x: element.x, y: element.y });
+    setDragState({
+      elementId: element.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      elementX: element.x,
+      elementY: element.y,
+      moved: false,
+    });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && selectedElementId) {
-      const dx = (e.clientX - dragStart.x) / scale;
-      const dy = (e.clientY - dragStart.y) / scale;
-      onUpdateElement(selectedElementId, {
-        x: elementStart.x + dx,
-        y: elementStart.y + dy,
-      });
+    if (!dragState) {
+      return;
     }
+
+    const dx = (e.clientX - dragState.startX) / scale;
+    const dy = (e.clientY - dragState.startY) / scale;
+    const moved = dragState.moved || Math.abs(dx) > 2 || Math.abs(dy) > 2;
+
+    setDragState((prev) => (prev ? { ...prev, moved } : prev));
+
+    if (!moved) {
+      return;
+    }
+
+    onUpdateElement(dragState.elementId, {
+      x: dragState.elementX + dx,
+      y: dragState.elementY + dy,
+    });
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    setDragState(null);
+  };
+
+  const handleCanvasMouseDown = () => {
+    if (editingTextId) {
+      return;
+    }
+    onSelectElement(null);
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onSelectElement(null);
+      setEditingTextId(null);
+    }
+  };
+
+  const handleTextDoubleClick = (e: React.MouseEvent, element: TextElement) => {
+    e.stopPropagation();
+    onSelectElement(element.id);
+    setEditingTextId(element.id);
+    setDragState(null);
+  };
+
+  const handleTextBlur = (id: string, value: string) => {
+    onUpdateElement(id, { text: value });
+    setEditingTextId(null);
   };
 
   const renderElement = (el: CanvasElement) => {
     const isSelected = el.id === selectedElementId;
+    const isDragging = dragState?.elementId === el.id && dragState.moved;
+    const isEditing = el.type === 'text' && editingTextId === el.id;
     const baseStyle: React.CSSProperties = {
       position: 'absolute',
       left: el.x,
@@ -73,10 +146,10 @@ export const Canvas: React.FC<CanvasProps> = ({
       transform: `rotate(${el.rotation}deg)`,
       opacity: el.opacity,
       zIndex: el.zIndex,
-      cursor: isDragging && isSelected ? 'grabbing' : 'grab',
+      cursor: isEditing ? 'text' : isDragging && isSelected ? 'grabbing' : 'grab',
       outline: isSelected ? '2px solid #3b82f6' : 'none',
       outlineOffset: '2px',
-      userSelect: 'none',
+      userSelect: isEditing ? 'text' : 'none',
     };
 
     if (el.type === 'text') {
@@ -84,6 +157,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       return (
         <div
           key={el.id}
+          ref={isEditing ? editingRef : null}
           style={{
             ...baseStyle,
             fontSize: textEl.fontSize,
@@ -97,7 +171,12 @@ export const Canvas: React.FC<CanvasProps> = ({
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           }}
-          onMouseDown={(e) => handleMouseDown(e, el)}
+          contentEditable={isEditing}
+          suppressContentEditableWarning
+          onMouseDown={(e) => handleElementMouseDown(e, el)}
+          onDoubleClick={(e) => handleTextDoubleClick(e, textEl)}
+          onClick={(e) => e.stopPropagation()}
+          onBlur={(e) => handleTextBlur(el.id, e.currentTarget.textContent ?? '')}
         >
           {textEl.text}
         </div>
@@ -107,18 +186,26 @@ export const Canvas: React.FC<CanvasProps> = ({
     if (el.type === 'image') {
       const imgEl = el as ImageElement;
       return (
-        <img
+        <div
           key={el.id}
-          src={imgEl.src}
-          alt=""
-          style={{
-            ...baseStyle,
-            objectFit: imgEl.objectFit,
-            borderRadius: imgEl.borderRadius,
-            pointerEvents: 'none', // Prevent native image drag
-          }}
-          onMouseDown={(e) => handleMouseDown(e, el)}
-        />
+          style={baseStyle}
+          onMouseDown={(e) => handleElementMouseDown(e, el)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src={imgEl.src}
+            alt=""
+            draggable={false}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: imgEl.objectFit,
+              borderRadius: imgEl.borderRadius,
+              display: 'block',
+              pointerEvents: 'none',
+            }}
+          />
+        </div>
       );
     }
 
@@ -132,7 +219,8 @@ export const Canvas: React.FC<CanvasProps> = ({
             backgroundColor: shapeEl.backgroundColor,
             borderRadius: shapeEl.shapeType === 'circle' ? '50%' : shapeEl.borderRadius,
           }}
-          onMouseDown={(e) => handleMouseDown(e, el)}
+          onMouseDown={(e) => handleElementMouseDown(e, el)}
+          onClick={(e) => e.stopPropagation()}
         />
       );
     }
@@ -149,13 +237,14 @@ export const Canvas: React.FC<CanvasProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="flex-1 bg-gray-100 flex items-center justify-center overflow-hidden relative"
+      onMouseDown={handleCanvasMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      onClick={() => onSelectElement(null)}
+      onClick={handleCanvasClick}
     >
       <div
         style={{
@@ -180,7 +269,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           }}
           className="transition-transform duration-200 ease-out"
         >
-          {state.elements.sort((a, b) => a.zIndex - b.zIndex).map(renderElement)}
+          {[...state.elements].sort((a, b) => a.zIndex - b.zIndex).map(renderElement)}
         </div>
       </div>
     </div>
