@@ -24,7 +24,10 @@ export default function App() {
 
       const scaleX = nextWidth / prev.width;
       const scaleY = nextHeight / prev.height;
-      const textScale = Math.min(scaleX, scaleY);
+      
+      // Use geometric mean for uniform scaling to preserve aspect ratio of elements
+      // while still scaling them when the canvas area changes.
+      const uniformScale = Math.sqrt(scaleX * scaleY);
 
       return {
         ...prev,
@@ -32,26 +35,36 @@ export default function App() {
         width: nextWidth,
         height: nextHeight,
         elements: prev.elements.map((el) => {
+          // Calculate new center based on relative position
+          const centerX = el.x + el.width / 2;
+          const centerY = el.y + el.height / 2;
+          const newCenterX = centerX * scaleX;
+          const newCenterY = centerY * scaleY;
+
+          // Scale width and height uniformly
+          const newWidth = el.width * uniformScale;
+          const newHeight = el.height * uniformScale;
+
           const resizedBase = {
             ...el,
-            x: el.x * scaleX,
-            y: el.y * scaleY,
-            width: el.width * scaleX,
-            height: el.height * scaleY,
+            x: newCenterX - newWidth / 2,
+            y: newCenterY - newHeight / 2,
+            width: newWidth,
+            height: newHeight,
           };
 
           if (el.type === 'text') {
             return {
               ...resizedBase,
-              fontSize: Math.max(1, Math.round(el.fontSize * textScale)),
-              letterSpacing: el.letterSpacing * textScale,
+              fontSize: Math.max(1, Math.round(el.fontSize * uniformScale)),
+              letterSpacing: el.letterSpacing * uniformScale,
             };
           }
 
           if (el.type === 'image' || el.type === 'shape') {
             return {
               ...resizedBase,
-              borderRadius: el.borderRadius === undefined ? undefined : el.borderRadius * textScale,
+              borderRadius: el.borderRadius === undefined ? undefined : el.borderRadius * uniformScale,
             };
           }
 
@@ -163,7 +176,7 @@ export default function App() {
     setSelectedElementId(newShape.id);
   };
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(async (format: 'png' | 'jpeg' | 'webp') => {
     if (!canvasRef.current) return;
     
     // Deselect element before export to remove outlines
@@ -178,12 +191,14 @@ export default function App() {
         scale: 2, // High quality
         useCORS: true, // Allow external images
         allowTaint: true,
-        backgroundColor: null,
+        backgroundColor: format === 'jpeg' ? '#ffffff' : null,
       });
 
-      const url = canvas.toDataURL('image/png');
+      const mimeType = `image/${format}`;
+      const url = canvas.toDataURL(mimeType, 1.0);
       const link = document.createElement('a');
-      link.download = `template-export-${Date.now()}.png`;
+      const ext = format === 'jpeg' ? 'jpg' : format;
+      link.download = `template-export-${Date.now()}.${ext}`;
       link.href = url;
       link.click();
     } catch (error) {

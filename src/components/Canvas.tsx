@@ -22,7 +22,11 @@ export const Canvas: React.FC<CanvasProps> = ({
     startY: number;
     elementX: number;
     elementY: number;
+    elementWidth: number;
+    elementHeight: number;
     moved: boolean;
+    type: 'move' | 'resize';
+    handle?: string;
   } | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
@@ -78,7 +82,27 @@ export const Canvas: React.FC<CanvasProps> = ({
       startY: e.clientY,
       elementX: element.x,
       elementY: element.y,
+      elementWidth: element.width,
+      elementHeight: element.height,
       moved: false,
+      type: 'move',
+    });
+  };
+
+  const handleResizeMouseDown = (e: React.MouseEvent, element: CanvasElement, handle: string) => {
+    e.stopPropagation();
+    onSelectElement(element.id);
+    setDragState({
+      elementId: element.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      elementX: element.x,
+      elementY: element.y,
+      elementWidth: element.width,
+      elementHeight: element.height,
+      moved: false,
+      type: 'resize',
+      handle,
     });
   };
 
@@ -97,10 +121,47 @@ export const Canvas: React.FC<CanvasProps> = ({
       return;
     }
 
-    onUpdateElement(dragState.elementId, {
-      x: dragState.elementX + dx,
-      y: dragState.elementY + dy,
-    });
+    if (dragState.type === 'move') {
+      onUpdateElement(dragState.elementId, {
+        x: dragState.elementX + dx,
+        y: dragState.elementY + dy,
+      });
+    } else if (dragState.type === 'resize' && dragState.handle) {
+      let newX = dragState.elementX;
+      let newY = dragState.elementY;
+      let newWidth = dragState.elementWidth;
+      let newHeight = dragState.elementHeight;
+
+      const handle = dragState.handle;
+
+      if (handle.includes('e')) {
+        newWidth = Math.max(10, dragState.elementWidth + dx);
+      }
+      if (handle.includes('s')) {
+        newHeight = Math.max(10, dragState.elementHeight + dy);
+      }
+      if (handle.includes('w')) {
+        const possibleWidth = dragState.elementWidth - dx;
+        if (possibleWidth > 10) {
+          newWidth = possibleWidth;
+          newX = dragState.elementX + dx;
+        }
+      }
+      if (handle.includes('n')) {
+        const possibleHeight = dragState.elementHeight - dy;
+        if (possibleHeight > 10) {
+          newHeight = possibleHeight;
+          newY = dragState.elementY + dy;
+        }
+      }
+
+      onUpdateElement(dragState.elementId, {
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight,
+      });
+    }
   };
 
   const handleMouseUp = () => {
@@ -133,6 +194,47 @@ export const Canvas: React.FC<CanvasProps> = ({
     setEditingTextId(null);
   };
 
+  const renderResizeHandles = (el: CanvasElement) => {
+    if (selectedElementId !== el.id || editingTextId === el.id) return null;
+
+    const baseHandleStyle: React.CSSProperties = {
+      position: 'absolute',
+      backgroundColor: '#ffffff',
+      border: '2px solid #94a3b8',
+      zIndex: 10,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+    };
+
+    const handles = [
+      // Corners (Circles) - 24x24
+      { id: 'nw', cursor: 'nwse-resize', top: -12, left: -12, width: 24, height: 24, borderRadius: '50%' },
+      { id: 'ne', cursor: 'nesw-resize', top: -12, right: -12, width: 24, height: 24, borderRadius: '50%' },
+      { id: 'se', cursor: 'nwse-resize', bottom: -12, right: -12, width: 24, height: 24, borderRadius: '50%' },
+      { id: 'sw', cursor: 'nesw-resize', bottom: -12, left: -12, width: 24, height: 24, borderRadius: '50%' },
+      // Edges (Pills) - 32x16 and 16x32
+      { id: 'n', cursor: 'ns-resize', top: -8, left: '50%', transform: 'translateX(-50%)', width: 32, height: 16, borderRadius: '8px' },
+      { id: 's', cursor: 'ns-resize', bottom: -8, left: '50%', transform: 'translateX(-50%)', width: 32, height: 16, borderRadius: '8px' },
+      { id: 'e', cursor: 'ew-resize', top: '50%', right: -8, transform: 'translateY(-50%)', width: 16, height: 32, borderRadius: '8px' },
+      { id: 'w', cursor: 'ew-resize', top: '50%', left: -8, transform: 'translateY(-50%)', width: 16, height: 32, borderRadius: '8px' },
+    ];
+
+    return (
+      <>
+        {handles.map((handle) => {
+          const { id, cursor, ...styleProps } = handle;
+          return (
+            <div
+              key={id}
+              style={{ ...baseHandleStyle, ...styleProps, cursor }}
+              onMouseDown={(e) => handleResizeMouseDown(e, el, id)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          );
+        })}
+      </>
+    );
+  };
+
   const renderElement = (el: CanvasElement) => {
     const isSelected = el.id === selectedElementId;
     const isDragging = dragState?.elementId === el.id && dragState.moved;
@@ -147,8 +249,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       opacity: el.opacity,
       zIndex: el.zIndex,
       cursor: isEditing ? 'text' : isDragging && isSelected ? 'grabbing' : 'grab',
-      outline: isSelected ? '2px solid #3b82f6' : 'none',
-      outlineOffset: '2px',
+      outline: isSelected ? '3px solid #00d0f4' : 'none',
       userSelect: isEditing ? 'text' : 'none',
     };
 
@@ -179,6 +280,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           onBlur={(e) => handleTextBlur(el.id, e.currentTarget.textContent ?? '')}
         >
           {textEl.text}
+          {renderResizeHandles(el)}
         </div>
       );
     }
@@ -205,6 +307,7 @@ export const Canvas: React.FC<CanvasProps> = ({
               pointerEvents: 'none',
             }}
           />
+          {renderResizeHandles(el)}
         </div>
       );
     }
@@ -221,7 +324,9 @@ export const Canvas: React.FC<CanvasProps> = ({
           }}
           onMouseDown={(e) => handleElementMouseDown(e, el)}
           onClick={(e) => e.stopPropagation()}
-        />
+        >
+          {renderResizeHandles(el)}
+        </div>
       );
     }
 
