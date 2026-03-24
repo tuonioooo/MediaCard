@@ -287,6 +287,14 @@ export const Canvas: React.FC<CanvasProps> = ({
 
     if (el.type === 'image') {
       const imgEl = el as ImageElement;
+      
+      // Helper to proxy external images for CORS
+      const getProxiedUrl = (url: string) => {
+        if (!url || url.startsWith('data:') || url.startsWith('blob:')) return url;
+        if (url.includes('corsproxy.io') || url.includes('wsrv.nl')) return url;
+        return `https://wsrv.nl/?url=${encodeURIComponent(url)}&we`;
+      };
+
       return (
         <div
           key={el.id}
@@ -295,9 +303,10 @@ export const Canvas: React.FC<CanvasProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <img
-            src={imgEl.src}
+            src={getProxiedUrl(imgEl.src)}
             alt=""
             draggable={false}
+            crossOrigin="anonymous"
             referrerPolicy="no-referrer"
             style={{
               width: '100%',
@@ -338,7 +347,13 @@ export const Canvas: React.FC<CanvasProps> = ({
     const bg = state.background;
     if (bg.type === 'color') return { backgroundColor: bg.value };
     if (bg.type === 'gradient') return { background: bg.value };
-    if (bg.type === 'image') return { backgroundImage: `url(${bg.value})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+    if (bg.type === 'image') {
+      let url = bg.value;
+      if (url && !url.startsWith('data:') && !url.startsWith('blob:') && !url.includes('corsproxy.io') && !url.includes('wsrv.nl')) {
+        url = `https://wsrv.nl/?url=${encodeURIComponent(url)}&we`;
+      }
+      return { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' };
+    }
     return { backgroundColor: '#ffffff' };
   };
 
