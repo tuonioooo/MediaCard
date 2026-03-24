@@ -298,6 +298,7 @@ export const Canvas: React.FC<CanvasProps> = ({
             src={imgEl.src}
             alt=""
             draggable={false}
+            referrerPolicy="no-referrer"
             style={{
               width: '100%',
               height: '100%',

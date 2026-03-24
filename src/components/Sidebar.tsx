@@ -12,6 +12,83 @@ interface SidebarProps {
   currentTemplateId: string | null;
 }
 
+const TemplateThumbnail: React.FC<{ template: Template }> = ({ template }) => {
+  const { state } = template;
+  
+  return (
+    <div 
+      className="w-full h-full relative overflow-hidden" 
+      style={{
+        background: state.background.type === 'color' ? state.background.value : undefined,
+        backgroundImage: state.background.type === 'gradient' ? state.background.value : undefined,
+      }}
+    >
+      {state.background.type === 'image' && (
+        <img src={state.background.value} alt="bg" className="absolute inset-0 w-full h-full object-cover" referrerPolicy="no-referrer" />
+      )}
+      <svg viewBox={`0 0 ${state.width} ${state.height}`} className="absolute inset-0 w-full h-full pointer-events-none">
+        <foreignObject x="0" y="0" width={state.width} height={state.height}>
+          {/* @ts-ignore - foreignObject requires xmlns in some strict environments but works in React */}
+          <div xmlns="http://www.w3.org/1999/xhtml" style={{ width: state.width, height: state.height, position: 'relative' }}>
+            {state.elements.map(el => {
+              const baseStyle: React.CSSProperties = {
+                position: 'absolute',
+                left: el.x,
+                top: el.y,
+                width: el.width,
+                height: el.height,
+                transform: `rotate(${el.rotation}deg)`,
+                opacity: el.opacity,
+                zIndex: el.zIndex,
+              };
+
+              if (el.type === 'text') {
+                const textEl = el as TextElement;
+                return (
+                  <div key={el.id} style={{
+                    ...baseStyle,
+                    fontSize: textEl.fontSize,
+                    fontFamily: textEl.fontFamily,
+                    fontWeight: textEl.fontWeight,
+                    color: textEl.color,
+                    textAlign: textEl.textAlign,
+                    lineHeight: textEl.lineHeight,
+                    letterSpacing: textEl.letterSpacing,
+                    textShadow: textEl.textShadow,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}>
+                    {textEl.text}
+                  </div>
+                );
+              } else if (el.type === 'image') {
+                const imgEl = el as ImageElement;
+                return (
+                  <img key={el.id} src={imgEl.src} referrerPolicy="no-referrer" style={{
+                    ...baseStyle,
+                    objectFit: imgEl.objectFit,
+                    borderRadius: imgEl.borderRadius,
+                  }} />
+                );
+              } else if (el.type === 'shape') {
+                const shapeEl = el as ShapeElement;
+                return (
+                  <div key={el.id} style={{
+                    ...baseStyle,
+                    backgroundColor: shapeEl.backgroundColor,
+                    borderRadius: shapeEl.shapeType === 'circle' ? '50%' : shapeEl.borderRadius,
+                  }} />
+                );
+              }
+              return null;
+            })}
+          </div>
+        </foreignObject>
+      </svg>
+    </div>
+  );
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   onAddText,
   onAddImage,
@@ -94,7 +171,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }`}
                   >
                     <div className="aspect-[3/4] bg-gray-100 relative">
-                      <img src={template.thumbnail} alt={template.name} className="w-full h-full object-cover" />
+                      <TemplateThumbnail template={template} />
                     </div>
                     <div className="p-1 text-[10px] text-center text-gray-600 truncate">
                       {template.name}
@@ -116,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }`}
                   >
                     <div className="aspect-[2.35/1] bg-gray-100 relative">
-                      <img src={template.thumbnail} alt={template.name} className="w-full h-full object-cover" />
+                      <TemplateThumbnail template={template} />
                     </div>
                     <div className="p-1 text-[10px] text-center text-gray-600 truncate">
                       {template.name}
