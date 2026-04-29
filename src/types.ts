@@ -56,7 +56,7 @@ export interface CanvasState {
 export interface Template {
   id: string;
   name: string;
-  category: 'xhs' | 'wechat';
+  category: 'xhs' | 'wechat' | 'product';
   thumbnail: string;
   state: CanvasState;
 }

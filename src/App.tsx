@@ -138,11 +138,11 @@ export default function App() {
     setSelectedElementId(newText.id);
   };
 
-  const handleAddImage = () => {
+  const handleAddImage = (src?: string) => {
     const newImage: ImageElement = {
       id: generateId(),
       type: 'image',
-      src: 'https://picsum.photos/seed/new/400/400',
+      src: src || 'https://picsum.photos/seed/new/400/400',
       x: state.width / 2 - 200,
       y: state.height / 2 - 200,
       width: 400,
@@ -211,8 +211,10 @@ export default function App() {
   }, [selectedElementId]);
 
   return (
-    <div className="flex h-screen w-full bg-gray-50 overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-gray-100 overflow-hidden font-sans">
       <Sidebar
+        state={state}
+        onUpdateCanvas={handleUpdateCanvas}
         onAddText={handleAddText}
         onAddImage={handleAddImage}
         onAddShape={handleAddShape}
@@ -235,7 +237,7 @@ export default function App() {
           canvasRef={canvasRef}
         />
       </div>
-      
+
       <PropertiesPanel
         state={state}
         selectedElementId={selectedElementId}

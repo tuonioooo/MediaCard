@@ -290,7 +290,13 @@ export const Canvas: React.FC<CanvasProps> = ({
       
       // Helper to proxy external images for CORS
       const getProxiedUrl = (url: string) => {
-        if (!url || url.startsWith('data:') || url.startsWith('blob:')) return url;
+        if (!url || url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('/')) return url;
+        try {
+          const parsedUrl = new URL(url, window.location.origin);
+          if (parsedUrl.hostname === window.location.hostname) return url;
+        } catch (e) {
+          // ignore
+        }
         if (url.includes('corsproxy.io') || url.includes('wsrv.nl')) return url;
         return `https://wsrv.nl/?url=${encodeURIComponent(url)}&we`;
       };

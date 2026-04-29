@@ -7,7 +7,7 @@ interface TopBarProps {
   onUpdateCanvas: (updates: { width?: number; height?: number }) => void;
 }
 
-const RATIOS = [
+const RATIOS: { label: string; value: number | 'custom' }[] = [
   { label: '智能', value: 'custom' },
   { label: '21:9', value: 21 / 9 },
   { label: '16:9', value: 16 / 9 },
