@@ -320,11 +320,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   );
 
   const renderCanvasProperties = () => (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-3">
-        <Settings className="w-5 h-5 text-gray-600" />
-        <h3 className="font-semibold text-gray-800">画布属性</h3>
-      </div>
+    <div className="space-y-4">
+      <div className="text-xs text-gray-400">设置当前画布的背景样式</div>
       
       <div className="space-y-4">
         <div>
@@ -385,44 +382,71 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             />
           </div>
         )}
+
+        <div className="border-t border-gray-200 pt-4 mt-6">
+          <h4 className="text-xs font-semibold text-gray-600 mb-2">画布尺寸</h4>
+          <div className="grid grid-cols-2 gap-3 text-xs text-gray-500 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+            <div>宽度: <span className="font-mono text-gray-800">{state.width}px</span></div>
+            <div>高度: <span className="font-mono text-gray-800">{state.height}px</span></div>
+          </div>
+        </div>
       </div>
     </div>
   );
 
   return (
-    <div className="w-72 bg-white border-l border-gray-200 flex flex-col h-full overflow-y-auto">
-      <div className="p-5 h-full flex items-center justify-center">
-        {!selectedElement ? (
-          <div className="text-center text-gray-500 flex flex-col items-center">
-            <Settings className="w-10 h-10 mb-3 text-gray-300" />
-            <p className="text-sm font-medium">请选择一个元素</p>
-            <p className="text-xs mt-1 text-gray-400">在画布上点击文字、图片或形状以编辑其属性</p>
+    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full overflow-hidden shrink-0 select-none">
+      {/* 顶部固定标题栏 - 与 TopBar (h-14) 保持高度与底边线完全平齐 */}
+      <div className="h-14 border-b border-gray-200 px-4 flex items-center justify-between shrink-0 bg-white z-10 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-2">
+          {selectedElement ? (
+            <>
+              {selectedElement.type === 'text' && <Type className="w-4 h-4 text-indigo-600" />}
+              {selectedElement.type === 'image' && <ImageIcon className="w-4 h-4 text-indigo-600" />}
+              {selectedElement.type === 'shape' && <Square className="w-4 h-4 text-indigo-600" />}
+              <span className="text-sm font-bold text-gray-800">
+                {selectedElement.type === 'text' ? '文字属性' : selectedElement.type === 'image' ? '图片属性' : '形状属性'}
+              </span>
+            </>
+          ) : (
+            <>
+              <Settings className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-bold text-gray-800">画布属性</span>
+            </>
+          )}
+        </div>
+
+        {selectedElement && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onDuplicateElement(selectedElement.id)}
+              className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+              title="复制图层"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => onDeleteElement(selectedElement.id)}
+              className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="删除图层"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
-        ) : (
-          <div>
-            <div className="flex justify-end gap-2 mb-4">
-              <button
-                onClick={() => onDuplicateElement(selectedElement.id)}
-                className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                title="复制元素"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onDeleteElement(selectedElement.id)}
-                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                title="删除元素"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-            
+        )}
+      </div>
+
+      {/* 独立滚动区域 - 顶部位置紧贴顶部工具栏下方 (y=56px)，内容自顶向下正常流式排布，彻底杜绝负偏移与截断 */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {selectedElement ? (
+          <div className="space-y-4">
             {selectedElement.type === 'text' && renderTextProperties(selectedElement as TextElement)}
             {selectedElement.type === 'image' && renderImageProperties(selectedElement as ImageElement)}
             {selectedElement.type === 'shape' && renderShapeProperties(selectedElement as ShapeElement)}
-            
             {renderBaseProperties(selectedElement)}
           </div>
+        ) : (
+          renderCanvasProperties()
         )}
       </div>
     </div>

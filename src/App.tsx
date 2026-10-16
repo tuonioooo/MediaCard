@@ -9,7 +9,7 @@ import html2canvas from 'html2canvas';
 
 export default function App() {
   const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(TEMPLATES[0].id);
-  const [state, setState] = useState<CanvasState>(TEMPLATES[0].state);
+  const [state, setState] = useState<CanvasState>(() => JSON.parse(JSON.stringify(TEMPLATES[0].state)));
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
