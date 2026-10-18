@@ -60,3 +60,11 @@ export interface Template {
   thumbnail: string;
   state: CanvasState;
 }
+
+export interface ExportOptions {
+  format: 'png' | 'jpeg' | 'webp';
+  scale: number; // 1 | 2 | 3
+  filename?: string;
+  transparent?: boolean;
+}
+

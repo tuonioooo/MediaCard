@@ -20,6 +20,7 @@ const RATIOS: { label: string; value: number | 'custom' }[] = [
 ];
 
 const RESOLUTIONS = [
+  { label: '标准 1080P', longEdge: 1920 },
   { label: '高清 2K', longEdge: 2560 },
   { label: '超清 4K', longEdge: 3840 },
 ];
@@ -71,20 +72,32 @@ export const TopBar: React.FC<TopBarProps> = ({ width, height, onUpdateCanvas })
 
   const longEdge = Math.max(width, height);
   let activeRes = RESOLUTIONS[0].longEdge;
-  if (Math.abs(longEdge - RESOLUTIONS[1].longEdge) < 500) {
+  if (Math.abs(longEdge - RESOLUTIONS[1].longEdge) < 400) {
     activeRes = RESOLUTIONS[1].longEdge;
+  } else if (Math.abs(longEdge - RESOLUTIONS[2].longEdge) < 400) {
+    activeRes = RESOLUTIONS[2].longEdge;
   }
 
   const handleRatioClick = (ratioVal: number | 'custom') => {
     if (ratioVal === 'custom') return;
     const isWide = ratioVal > 1;
     let newW, newH;
-    if (isWide) {
-      newW = activeRes;
-      newH = Math.round(activeRes / ratioVal);
+    if (activeRes === 1920) {
+      if (isWide) {
+        newH = 1080;
+        newW = Math.round(1080 * ratioVal);
+      } else {
+        newW = 1080;
+        newH = Math.round(1080 / ratioVal);
+      }
     } else {
-      newH = activeRes;
-      newW = Math.round(activeRes * ratioVal);
+      if (isWide) {
+        newW = activeRes;
+        newH = Math.round(activeRes / ratioVal);
+      } else {
+        newH = activeRes;
+        newW = Math.round(activeRes * ratioVal);
+      }
     }
     onUpdateCanvas({ width: newW, height: newH });
   };
@@ -123,6 +136,8 @@ export const TopBar: React.FC<TopBarProps> = ({ width, height, onUpdateCanvas })
     }
   };
 
+  const currentResLabel = RESOLUTIONS.find(r => r.longEdge === activeRes)?.label || '标准 1080P';
+
   return (
     <div className="h-14 bg-white border-b border-gray-200 flex items-center px-4 relative z-50 shadow-sm">
       <button
@@ -132,7 +147,7 @@ export const TopBar: React.FC<TopBarProps> = ({ width, height, onUpdateCanvas })
         <LayoutTemplate className="w-4 h-4 text-gray-400" />
         <span>{closestRatio ? closestRatio.label : '自定义'}</span>
         <span className="text-gray-500 mx-1">|</span>
-        <span>{activeRes === RESOLUTIONS[1].longEdge ? '超清 4K' : '高清 2K'}</span>
+        <span>{currentResLabel}</span>
         <ChevronDown className="w-4 h-4 text-gray-400 ml-1" />
       </button>
 

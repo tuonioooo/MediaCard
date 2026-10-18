@@ -1,5 +1,5 @@
 {
   "name": "MediaCard",
-  "description": "",
+  "description": "专业的社媒贴片图文与榜单海报生成器，支持多比例自适应排版、智能等比缩放与高清导出",
   "requestFramePermissions": []
 }
